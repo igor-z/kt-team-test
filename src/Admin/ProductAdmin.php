@@ -115,6 +115,8 @@ class ProductAdmin extends AbstractAdmin
         $collection->remove('show');
         $collection->get('list')
             ->setPath('/products');
+        $collection->get('create')
+            ->setPath('/products/create');
         $collection->get('edit')
             ->setPath('/products/{id}/edit');
         $collection->get('delete')

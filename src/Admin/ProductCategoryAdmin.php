@@ -32,6 +32,8 @@ class ProductCategoryAdmin extends AbstractAdmin
         $collection->remove('show');
         $collection->get('list')
             ->setPath('/product-categories');
+        $collection->get('create')
+            ->setPath('/product-categories/create');
         $collection->get('edit')
             ->setPath('/product-categories/{id}/edit');
         $collection->get('delete')
