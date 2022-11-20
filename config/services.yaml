@@ -30,3 +30,7 @@ services:
     App\Admin\ProductCategoryAdmin:
         tags:
             - {name: sonata.admin, model_class: App\Entity\ProductCategory, manager_type: orm, label: 'Product Category'}
+
+    App\Import\Importer:
+        arguments:
+            $batchSize: 20000

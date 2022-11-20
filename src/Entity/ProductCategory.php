@@ -17,7 +17,7 @@ class ProductCategory
     #[ORM\Column]
     private int $id;
 
-    #[ORM\Column(length: 255)]
+    #[ORM\Column(length: 255, unique: true)]
     private string $name;
 
     #[ORM\OneToMany(mappedBy: 'category', targetEntity: Product::class)]

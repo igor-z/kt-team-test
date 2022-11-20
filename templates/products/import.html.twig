@@ -1,128 +1,221 @@
 {% extends '@SonataAdmin/standard_layout.html.twig' %}
 
 {% block sonata_admin_content %}
+    <style>
+        .lds-ring {
+            display: inline-block;
+            position: relative;
+            width: 20px;
+            height: 20px;
+        }
+        .lds-ring div {
+            box-sizing: border-box;
+            display: block;
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            margin: 2px;
+            border: 2px solid #a9e52b;
+            border-radius: 50%;
+            animation: lds-ring 1.2s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+            border-color: #a9e52b transparent transparent transparent;
+        }
+        .lds-ring div:nth-child(1) {
+            animation-delay: -0.45s;
+        }
+        .lds-ring div:nth-child(2) {
+            animation-delay: -0.3s;
+        }
+        .lds-ring div:nth-child(3) {
+            animation-delay: -0.15s;
+        }
+        @keyframes lds-ring {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+
     <div class="sonata-ba-form">
-        <form action="{{ url('products_import') }}">
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="box box-primary">
-                                <div class="box-header"><h4 class="box-title">Products import</h4></div>
-                                <div class="box-body">
-                                    <label>
-                                        <span id="uploading_status" style="display: none">Uploading</span>
-                                        <progress id="file_upload_progress" style="display: none;" max="100" value="0">0%</progress>
-                                    </label>
-                                    <input data-upload-url="{{ url('products_upload_import_file') }}" type="file" id="file_upload">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="box box-primary">
+                            <div class="box-header"><h4 class="box-title">Products import</h4></div>
+                            <div class="box-body">
+                                <label>
+                                    <span id="uploading_status" style="display: none">Uploading</span>
+                                    <progress id="file_upload_progress" style="display: none;" max="100" value="0">0%</progress>
+                                </label>
+                                <input data-upload-url="{{ url('products_upload_import_file') }}" type="file" id="file_upload">
+
+                                <div id="import_status_container" style="display: none">
+                                    <div id="import_loader" class="lds-ring"><div></div><div></div><div></div><div></div></div>
+                                    <label style="display: block" id="import_status"></label>
                                 </div>
+                                <button id="button_import" data-import-url="{{ url('products_import') }}" disabled>Import</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </form>
+        </div>
     </div>
 
     <script>
         (function () {
             const fileUpload = document.getElementById('file_upload');
-            const progressBar = document.getElementById('file_upload_progress');
+
+            const uploadProgressBar = document.getElementById('file_upload_progress');
             const uploadingStatus = document.getElementById('uploading_status');
 
-            const chunkSize = 1 * 1024 * 1024;
+            const importStatusContainer = document.getElementById('import_status_container');
+            const importStatus = document.getElementById('import_status');
+            const importLoader = document.getElementById('import_loader');
+            const buttonImport = document.getElementById('button_import');
+
+            const chunkSize = 50 * 1024 * 1024;
+
+            buttonImport.addEventListener('click', function () {
+                const form = new FormData();
+                form.set('filename', fileUpload.files[0].name);
+
+                _import.importing();
+
+                fetch(buttonImport.dataset.importUrl, {
+                    method: 'POST',
+                    body: form
+                })
+                    .then(function (response) {
+                        _import.finished();
+                        upload.initialUploading();
+                    });
+            });
 
             fileUpload.addEventListener('change', function (e) {
                 e.preventDefault();
 
                 const file = fileUpload.files[0];
                 if (!file) {
-                    hideProgress();
+                    upload.initialUploading();
                     return;
                 }
 
-                startUploading();
+                upload.startUploading();
 
-                updateProgress(0, file.size);
+                upload.updateProgress(0, file.size);
 
-                uploadChunks(file, 0);
+                upload.uploadChunks(file, 0);
             });
 
-            function uploadChunks(file, start)
-            {
-                if (start >= file.size) {
-                    completeUploading();
-                    return;
+            const _import = {
+                importing: function () {
+                    importStatusContainer.style.display = 'block';
+                    importLoader.style.display = 'block';
+                    importStatus.textContent = 'Importing';
+                },
+                finished: function () {
+                    importStatusContainer.style.display = 'block';
+                    importLoader.style.display = 'none';
+                    importStatus.textContent = 'Imported';
+                },
+                initial: function () {
+                    importLoader.style.display = 'none';
+                    importStatusContainer.style.display = 'none';
                 }
+            };
 
-                uploadChunk(file, start)
-                    .then(function(response) {
-                        if (response.status >= 300) {
-                            uploadingFailed('Failed to upload file');
-                            throw 'Failed to upload file';
-                        }
+            const upload = {
+                uploadChunks: function(file, start)
+                {
+                    if (start >= file.size) {
+                        this.completeUploading(file);
+                        return;
+                    }
 
-                        start = Math.min(start + chunkSize, file.size);
+                    this.uploadChunk(file, start)
+                        .then(function(response) {
+                            if (response.status >= 300) {
+                                upload.uploadingFailed('Failed to upload file');
+                                throw 'Failed to upload file';
+                            }
 
-                        updateProgress(start, file.size);
-                        uploadChunks(file, start);
+                            start = Math.min(start + chunkSize, file.size);
+
+                            upload.updateProgress(start, file.size);
+                            upload.uploadChunks(file, start);
+                        });
+                },
+
+                initialUploading: function ()
+                {
+                    upload.hideProgress();
+                    buttonImport.disabled = true;
+                    fileUpload.value = '';
+                },
+
+                completeUploading: function(file)
+                {
+                    uploadingStatus.style.display = 'inline-block';
+                    uploadingStatus.textContent = 'Uploaded';
+                    buttonImport.disabled = false;
+                },
+
+                startUploading: function()
+                {
+                    uploadingStatus.style.display = 'inline-block';
+                    uploadingStatus.textContent = 'Uploading...';
+                    buttonImport.disabled = true;
+
+                    this.showProgress();
+                },
+
+                uploadingFailed: function(error)
+                {
+                    uploadingStatus.style.display = 'inline-block';
+                    uploadingStatus.textContent = error;
+                    buttonImport.disabled = true;
+
+                    this.hideProgress();
+                },
+
+                updateProgress: function(position, total)
+                {
+                    const progress = Math.floor((position / total) * 100);
+
+                    uploadProgressBar.value = progress;
+                    uploadProgressBar.textContent = progress + '%';
+                },
+
+                hideProgress: function()
+                {
+                    uploadProgressBar.style.display = 'none';
+                },
+
+                showProgress: function()
+                {
+                    uploadProgressBar.style.display = 'block';
+                },
+
+                uploadChunk: function(file, start)
+                {
+                    let end = Math.min(start + chunkSize, file.size);
+
+                    const url = new URL(fileUpload.dataset.uploadUrl);
+                    url.search += 'filename=' + file.name;
+                    return fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Range': `bytes ${start}-${end - 1}/${file.size}`
+                        },
+                        body: file.slice(start, end),
                     });
-            }
-
-            function completeUploading()
-            {
-                uploadingStatus.style.display = 'inline-block';
-                uploadingStatus.textContent = 'Uploaded';
-            }
-
-            function startUploading()
-            {
-                uploadingStatus.style.display = 'inline-block';
-                uploadingStatus.textContent = 'Uploading...';
-
-                showProgress();
-            }
-
-            function uploadingFailed(error)
-            {
-                uploadingStatus.style.display = 'inline-block';
-                uploadingStatus.textContent = error;
-
-                hideProgress();
-            }
-
-            function updateProgress(position, total)
-            {
-                const progress = Math.floor((position / total) * 100);
-
-                progressBar.value = progress;
-                progressBar.textContent = progress + '%';
-            }
-
-            function hideProgress()
-            {
-                progressBar.style.display = 'none';
-            }
-
-            function showProgress()
-            {
-                progressBar.style.display = 'block';
-            }
-
-            function uploadChunk(file, start)
-            {
-                let end = Math.min(start + chunkSize, file.size);
-
-                const url = new URL(fileUpload.dataset.uploadUrl);
-                url.search += 'fileName=' + file.name;
-                return fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Range': `bytes ${start}-${end - 1}/${file.size}`
-                    },
-                    body: file.slice(start, end),
-                });
-            }
+                }
+            };
         })();
     </script>
 {% endblock %}
