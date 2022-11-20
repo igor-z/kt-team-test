@@ -26,7 +26,7 @@ services:
     ## Sonata admin
     App\Admin\ProductAdmin:
         tags:
-            - {name: sonata.admin, model_class: App\Entity\Product, manager_type: orm, label: Product}
+            - {name: sonata.admin, model_class: App\Entity\Product, manager_type: orm, label: Product, controller: App\Controller\ProductController}
     App\Admin\ProductCategoryAdmin:
         tags:
             - {name: sonata.admin, model_class: App\Entity\ProductCategory, manager_type: orm, label: 'Product Category'}

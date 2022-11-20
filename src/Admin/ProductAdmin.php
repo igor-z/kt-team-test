@@ -121,10 +121,25 @@ class ProductAdmin extends AbstractAdmin
             ->setPath('/products/{id}/edit');
         $collection->get('delete')
             ->setPath('/products/{id}/delete');
+
+        $collection->add('import');
+        $collection->get('import')
+            ->setPath('/products/import');
+
+        $collection->add('upload_import_file');
+        $collection->get('upload_import_file')
+            ->setPath('/products/upload-import-file');
     }
 
     protected function generateBaseRouteName(bool $isChildAdmin = false): string
     {
         return 'products';
+    }
+
+    protected function configureActionButtons(array $buttonList, string $action, ?object $object = null): array
+    {
+        $buttonList['import'] = ['template' => 'products/import_button.html.twig'];
+
+        return $buttonList;
     }
 }

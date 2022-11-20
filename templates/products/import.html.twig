@@ -1,0 +1,128 @@
+{% extends '@SonataAdmin/standard_layout.html.twig' %}
+
+{% block sonata_admin_content %}
+    <div class="sonata-ba-form">
+        <form action="{{ url('products_import') }}">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="box box-primary">
+                                <div class="box-header"><h4 class="box-title">Products import</h4></div>
+                                <div class="box-body">
+                                    <label>
+                                        <span id="uploading_status" style="display: none">Uploading</span>
+                                        <progress id="file_upload_progress" style="display: none;" max="100" value="0">0%</progress>
+                                    </label>
+                                    <input data-upload-url="{{ url('products_upload_import_file') }}" type="file" id="file_upload">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        (function () {
+            const fileUpload = document.getElementById('file_upload');
+            const progressBar = document.getElementById('file_upload_progress');
+            const uploadingStatus = document.getElementById('uploading_status');
+
+            const chunkSize = 1 * 1024 * 1024;
+
+            fileUpload.addEventListener('change', function (e) {
+                e.preventDefault();
+
+                const file = fileUpload.files[0];
+                if (!file) {
+                    hideProgress();
+                    return;
+                }
+
+                startUploading();
+
+                updateProgress(0, file.size);
+
+                uploadChunks(file, 0);
+            });
+
+            function uploadChunks(file, start)
+            {
+                if (start >= file.size) {
+                    completeUploading();
+                    return;
+                }
+
+                uploadChunk(file, start)
+                    .then(function(response) {
+                        if (response.status >= 300) {
+                            uploadingFailed('Failed to upload file');
+                            throw 'Failed to upload file';
+                        }
+
+                        start = Math.min(start + chunkSize, file.size);
+
+                        updateProgress(start, file.size);
+                        uploadChunks(file, start);
+                    });
+            }
+
+            function completeUploading()
+            {
+                uploadingStatus.style.display = 'inline-block';
+                uploadingStatus.textContent = 'Uploaded';
+            }
+
+            function startUploading()
+            {
+                uploadingStatus.style.display = 'inline-block';
+                uploadingStatus.textContent = 'Uploading...';
+
+                showProgress();
+            }
+
+            function uploadingFailed(error)
+            {
+                uploadingStatus.style.display = 'inline-block';
+                uploadingStatus.textContent = error;
+
+                hideProgress();
+            }
+
+            function updateProgress(position, total)
+            {
+                const progress = Math.floor((position / total) * 100);
+
+                progressBar.value = progress;
+                progressBar.textContent = progress + '%';
+            }
+
+            function hideProgress()
+            {
+                progressBar.style.display = 'none';
+            }
+
+            function showProgress()
+            {
+                progressBar.style.display = 'block';
+            }
+
+            function uploadChunk(file, start)
+            {
+                let end = Math.min(start + chunkSize, file.size);
+
+                const url = new URL(fileUpload.dataset.uploadUrl);
+                url.search += 'fileName=' + file.name;
+                return fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Range': `bytes ${start}-${end - 1}/${file.size}`
+                    },
+                    body: file.slice(start, end),
+                });
+            }
+        })();
+    </script>
+{% endblock %}
