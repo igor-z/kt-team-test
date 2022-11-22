@@ -122,10 +122,6 @@ class ProductAdmin extends AbstractAdmin
         $collection->get('delete')
             ->setPath('/products/{id}/delete');
 
-        $collection->add('import');
-        $collection->get('import')
-            ->setPath('/products/import');
-
         $collection->add('upload_import_file');
         $collection->get('upload_import_file')
             ->setPath('/products/upload-import-file');

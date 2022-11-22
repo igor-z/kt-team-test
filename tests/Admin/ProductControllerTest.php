@@ -131,9 +131,9 @@ class ProductControllerTest extends WebTestCase
     {
         $client = static::createClient();
 
-        $crawler = $client->request(
+        $client->request(
             'GET',
-            '/products/import'
+            '/import'
         );
 
         self::assertResponseIsSuccessful();
@@ -176,7 +176,7 @@ class ProductControllerTest extends WebTestCase
 
         $this->uploadFile($client, $filename, $fileContent);
 
-        $client->request('POST', '/products/import', [
+        $client->request('POST', '/import', [
             'filename' => $filename,
         ]);
 
